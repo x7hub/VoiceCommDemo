@@ -21,4 +21,12 @@
         android:layout_below="@id/textview_hello"
         android:text="@string/play" />
 
+    <EditText
+        android:id="@+id/edittext_code"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_play"
+        android:hint="@string/code_hint"
+        android:inputType="number" />
+
 </RelativeLayout>

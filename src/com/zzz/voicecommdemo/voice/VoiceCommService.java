@@ -1,7 +1,5 @@
 package com.zzz.voicecommdemo.voice;
 
-import com.zzz.voicecommdemo.ui.MainActivity;
-
 import android.app.Service;
 import android.content.Intent;
 import android.os.Handler;
@@ -11,6 +9,8 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
+
+import com.zzz.voicecommdemo.ui.MainActivity;
 
 /**
  * VoiceCommService
@@ -22,90 +22,87 @@ import android.util.Log;
  *
  */
 public class VoiceCommService extends Service {
-	public static final String TAG = "VoiceCommService";
+    public static final String TAG = "VoiceCommService";
 
-	private Handler handler;
+    private Handler handler;
 
-	public static final int MSG_CONNECTED = 1;
-	public static final int MSG_PREPARE = 2;
-	private Messenger client;
+    public static final int MSG_CONNECTED = 1;
+    public static final int MSG_PREPARE = 2;
+    private Messenger client;
 
-	double freq1 = 1000;
-	double freq2 = freq1;
+    private String CODE_DEFAULT = "012345678923456789456789678989";
+    private double[] codeBook = { 300, 400, 500, 600, 700, 800, 900, 1000,
+            1100, 1200 };
 
-	private final Messenger messenger = new Messenger(new Handler(
-			new Handler.Callback() {
+    private final Messenger messenger = new Messenger(new Handler(
+            new Handler.Callback() {
 
-				@Override
-				public boolean handleMessage(Message msg) {
-					Log.v(TAG, "IncomingHandler.handleMessage");
-					switch (msg.what) {
-					case MSG_CONNECTED:
-						client = msg.replyTo;
-						break;
-					case MSG_PREPARE:
-						handler.post(new Runnable() {
-							@Override
-							public void run() {
-								Message msg = Message.obtain(null,
-										MainActivity.MSG_STATE_GENERATEREADY,
-										0, 0);
-								msg.obj = genVoice();
-								try {
-									VoiceCommService.this.client.send(msg);
-								} catch (RemoteException e) {
-									e.printStackTrace();
-								}
-							}
-						});
-						break;
-					}
-					return false;
-				}
-			}));
+                @Override
+                public boolean handleMessage(Message msg) {
+                    Log.v(TAG, "IncomingHandler.handleMessage");
+                    switch (msg.what) {
+                    case MSG_CONNECTED:
+                        client = msg.replyTo;
+                        break;
+                    case MSG_PREPARE:
 
-	@Override
-	public void onCreate() {
-		super.onCreate();
-		HandlerThread thread = new HandlerThread("ServiceStartArguments");
-		thread.start();
-		handler = new Handler(thread.getLooper());
-	}
+                        final String code = (String) msg.obj;
 
-	@Override
-	public IBinder onBind(Intent arg0) {
-		Log.v(TAG, "onBind");
-		return messenger.getBinder();
-	}
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                Message msgClient = Message.obtain(null,
+                                        MainActivity.MSG_STATE_GENERATEREADY,
+                                        0, 0);
+                                msgClient.obj = genVoice(code.isEmpty() ? CODE_DEFAULT
+                                        : code);
+                                try {
+                                    VoiceCommService.this.client
+                                            .send(msgClient);
+                                } catch (RemoteException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+                        break;
+                    }
+                    return false;
+                }
+            }));
 
-	private Voice genVoice() {
-		Voice voice = new Voice();
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        HandlerThread thread = new HandlerThread("ServiceStartArguments");
+        thread.start();
+        handler = new Handler(thread.getLooper());
+    }
 
-		double instfreq = 0, numerator;
-		for (int i = 0; i < voice.getNumSample(); i++) {
-			numerator = (double) (i) / (double) voice.getNumSample();
-			instfreq = freq1 + (numerator * (freq2 - freq1));
-			if ((i % 1000) == 0) {
-				Log.v("Current Freq:", String.format(
-						"Freq is:  %f at loop %d of %d", instfreq, i,
-						voice.getNumSample()));
-			}
-			voice.sample[i] = Math.sin(2 * Math.PI * i
-					/ (voice.sampleRate / instfreq));
+    @Override
+    public IBinder onBind(Intent arg0) {
+        Log.v(TAG, "onBind");
+        return messenger.getBinder();
+    }
 
-		}
-		int idx = 0;
-		for (final double dVal : voice.sample) {
-			// scale to maximum amplitude
-			final short val = (short) ((dVal * 32767)); // max positive sample
-														// for signed 16 bit
-														// integers is 32767
-			// in 16 bit wave PCM, first byte is the low order byte (pcm: pulse
-			// control modulation)
-			voice.generatedVoice[idx++] = (byte) (val & 0x00ff);
-			voice.generatedVoice[idx++] = (byte) ((val & 0xff00) >>> 8);
-		}
-		return voice;
-	}
+    private Voice genVoice() {
+        return genVoice(CODE_DEFAULT);
+    }
 
+    private Voice genVoice(String code) {
+
+        // get freqs from input code
+        double[] freqs = new double[code.length()];
+        for (int i = 0; i < code.length(); i++) {
+            try {
+                int index = code.charAt(i) - '0';
+                freqs[i] = codeBook[index];
+            } catch (ArrayIndexOutOfBoundsException e) {
+                e.printStackTrace();
+            }
+        }
+
+        Voice voice = Voice.createFrom(freqs);
+
+        return voice;
+    }
 }
