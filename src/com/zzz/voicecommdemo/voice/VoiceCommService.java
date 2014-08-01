@@ -2,6 +2,11 @@ package com.zzz.voicecommdemo.voice;
 
 import android.app.Service;
 import android.content.Intent;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.AudioTrack;
+import android.media.MediaRecorder;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -23,16 +28,16 @@ import com.zzz.voicecommdemo.ui.MainActivity;
  */
 public class VoiceCommService extends Service {
     public static final String TAG = "VoiceCommService";
+    private final String CODE_DEFAULT = "0";
+
+    private boolean flagStop = false;
 
     private Handler handler;
 
     public static final int MSG_CONNECTED = 1;
-    public static final int MSG_PREPARE = 2;
+    public static final int MSG_SEND = 2;
+    public static final int MSG_RECV = 3;
     private Messenger client;
-
-    private String CODE_DEFAULT = "012345678923456789456789678989";
-    private double[] codeBook = { 300, 400, 500, 600, 700, 800, 900, 1000,
-            1100, 1200 };
 
     private final Messenger messenger = new Messenger(new Handler(
             new Handler.Callback() {
@@ -44,27 +49,25 @@ public class VoiceCommService extends Service {
                     case MSG_CONNECTED:
                         client = msg.replyTo;
                         break;
-                    case MSG_PREPARE:
-
-                        final String code = (String) msg.obj;
-
+                    case MSG_SEND:
+                        final String data = (String) msg.obj;
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
-                                Message msgClient = Message.obtain(null,
-                                        MainActivity.MSG_STATE_GENERATEREADY,
-                                        0, 0);
-                                msgClient.obj = genVoice(code.isEmpty() ? CODE_DEFAULT
-                                        : code);
-                                try {
-                                    VoiceCommService.this.client
-                                            .send(msgClient);
-                                } catch (RemoteException e) {
-                                    e.printStackTrace();
-                                }
+                                playVoice(data.isEmpty() ? CODE_DEFAULT : data);
                             }
                         });
                         break;
+                    case MSG_RECV:
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                readVoice();
+                            }
+                        });
+                        break;
+                    default:
+                        Log.w(TAG, "unknown msg");
                     }
                     return false;
                 }
@@ -84,25 +87,34 @@ public class VoiceCommService extends Service {
         return messenger.getBinder();
     }
 
-    private Voice genVoice() {
-        return genVoice(CODE_DEFAULT);
+    // generate voice signal
+    private void playVoice(String data) {
+        VoiceSignal v = VoiceSignal.createFrom(data);
+        AudioTrack audioTrack = null;
+        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, v.sampleRate,
+                AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, v.generatedVoice.length,
+                AudioTrack.MODE_STATIC);
+        audioTrack.write(v.generatedVoice, 0, v.generatedVoice.length);
+        audioTrack.play();
     }
 
-    private Voice genVoice(String code) {
+    // read voice from AudioRecord
+    private VoiceRecv readVoice() {
+        AudioRecord audioRecord = new AudioRecord(
+                MediaRecorder.AudioSource.MIC, Constants.DEFAULT_SAMPLE_RATE,
+                AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, Constants.DEFAULT_RECORD_BUFFER);
+        audioRecord.startRecording();
 
-        // get freqs from input code
-        double[] freqs = new double[code.length()];
-        for (int i = 0; i < code.length(); i++) {
-            try {
-                int index = code.charAt(i) - '0';
-                freqs[i] = codeBook[index];
-            } catch (ArrayIndexOutOfBoundsException e) {
-                e.printStackTrace();
-            }
+        VoiceRecv voice = new VoiceRecv();
+
+        while (audioRecord.read(voice.bufferRead, 0,
+                Constants.DEFAULT_RECORD_POINT) > 0 && !flagStop) {
+            voice.decode();
         }
 
-        Voice voice = Voice.createFrom(freqs);
-
+        audioRecord.stop();
         return voice;
     }
 }

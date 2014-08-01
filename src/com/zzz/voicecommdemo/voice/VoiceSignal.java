@@ -3,54 +3,67 @@ package com.zzz.voicecommdemo.voice;
 import android.util.Log;
 
 /**
- * Voice
+ * VoiceSignal
  * 
  * @author zzz
  *
  */
-public class Voice {
-    private static final String TAG = "Voice";
+public class VoiceSignal {
+    private static final String TAG = "VoiceSignal";
 
-    public int sampleRate = 44100; // voice params
-    private int sliceDuration = 100;
-    private int sliceNum = 1;
-
+    public int sampleRate; // voice params
+    // private int sliceDuration;
+    private int sliceNum;
+    private int sliceLength; // points in one slice
     private double sample[]; // intermediate variable
-
     public byte[] generatedVoice; // result to play
 
-    private Voice(int sliceNum) {
+    private VoiceSignal(int sliceNum) {
+        this.sampleRate = Constants.DEFAULT_SAMPLE_RATE;
+        this.sliceLength = Constants.DEFAULT_SLICE_LENGTH;
         this.sliceNum = sliceNum;
         this.sample = new double[getTotalPointsCount()];
         this.generatedVoice = new byte[2 * getTotalPointsCount()];
     }
 
-    // items in one slice
-    private int getSlicePointsCount() {
-        return sliceDuration * sampleRate / 1000;
-    }
-
     // items in total
     private int getTotalPointsCount() {
-        return getDuration() * sampleRate / 1000;
+        return sliceLength * sliceNum;
     }
 
     // total duration
     private int getDuration() {
-        return sliceDuration * sliceNum;
+        return getTotalPointsCount() / sampleRate;
+    }
+
+    // create voice from message
+    public static VoiceSignal createFrom(String data) {
+
+        // get freqs from input code
+        double[] freqs = new double[data.length()];
+        for (int i = 0; i < data.length(); i++) {
+            try {
+                int index = data.charAt(i) - '0';
+                freqs[i] = Constants.CODE_BOOK[index];
+            } catch (ArrayIndexOutOfBoundsException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return VoiceSignal.createFrom(freqs);
     }
 
     // create voice from freqs
-    public static Voice createFrom(double[] freqs) {
-        Voice voice = new Voice(freqs.length);
+    public static VoiceSignal createFrom(double[] freqs) {
+        VoiceSignal voice = new VoiceSignal(freqs.length);
 
         // create sample array into voice
         for (int sliceIndex = 0; sliceIndex < voice.sliceNum; sliceIndex++) {
             double freq = freqs[sliceIndex];
             Log.v(TAG, "freq - " + freq);
             try {
-                for (int i = 0; i < voice.getSlicePointsCount(); i++) {
-                    int p = i + voice.getSlicePointsCount() * sliceIndex;
+                for (int i = 0; i < voice.sliceLength; i++) {
+                    int p = i + voice.sliceLength * sliceIndex;
                     voice.sample[p] = Math.sin(2 * Math.PI * i
                             / (voice.sampleRate / freq));
                 }

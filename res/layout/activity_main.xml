@@ -14,19 +14,26 @@
         android:layout_height="wrap_content"
         android:text="@string/hello_world" />
 
-    <Button
-        android:id="@+id/button_play"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/textview_hello"
-        android:text="@string/play" />
-
     <EditText
         android:id="@+id/edittext_code"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/button_play"
+        android:layout_below="@id/textview_hello"
         android:hint="@string/code_hint"
         android:inputType="number" />
+
+    <Button
+        android:id="@+id/button_play"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/edittext_code"
+        android:text="@string/play" />
+
+    <Button
+        android:id="@+id/button_record"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_play"
+        android:text="@string/record" />
 
 </RelativeLayout>

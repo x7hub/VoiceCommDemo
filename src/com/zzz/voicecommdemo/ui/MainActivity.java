@@ -22,7 +22,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.zzz.voicecommdemo.R;
-import com.zzz.voicecommdemo.voice.Voice;
+import com.zzz.voicecommdemo.voice.VoiceSignal;
 import com.zzz.voicecommdemo.voice.VoiceCommService;
 
 /**
@@ -35,8 +35,9 @@ public class MainActivity extends Activity implements OnClickListener {
     public static final String TAG = "MainActivity";
 
     private TextView textviewHello;
-    private Button buttonPlay;
     private EditText edittextCode;
+    private Button buttonPlay;
+    private Button buttonRecord;
 
     public static final int MSG_STATE_GENERATEREADY = 1;
     private Messenger service;
@@ -49,7 +50,6 @@ public class MainActivity extends Activity implements OnClickListener {
                     Log.v(TAG, "IncomingHandler.handleMessage");
                     switch (msg.what) {
                     case MSG_STATE_GENERATEREADY:
-                        playVoice((Voice) msg.obj);
                         break;
                     }
                     return false;
@@ -64,9 +64,11 @@ public class MainActivity extends Activity implements OnClickListener {
         setContentView(R.layout.activity_main);
 
         textviewHello = (TextView) findViewById(R.id.textview_hello);
-        buttonPlay = (Button) findViewById(R.id.button_play);
         edittextCode = (EditText) findViewById(R.id.edittext_code);
+        buttonPlay = (Button) findViewById(R.id.button_play);
+        buttonRecord = (Button) findViewById(R.id.button_record);
         buttonPlay.setOnClickListener(this);
+        buttonRecord.setOnClickListener(this);
 
         Intent intent = new Intent(this.getApplicationContext(),
                 VoiceCommService.class);
@@ -89,9 +91,21 @@ public class MainActivity extends Activity implements OnClickListener {
         case R.id.button_play:
             Log.v(TAG, "button_play clicked");
             if (bound) {
-                Message msg = Message.obtain(null,
-                        VoiceCommService.MSG_PREPARE, 0, 0);
+                Message msg = Message.obtain(null, VoiceCommService.MSG_SEND,
+                        0, 0);
                 msg.obj = edittextCode.getText().toString();
+                try {
+                    service.send(msg);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+            break;
+        case R.id.button_record:
+            Log.v(TAG, "button_record clicked");
+            if (bound) {
+                Message msg = Message.obtain(null, VoiceCommService.MSG_RECV,
+                        0, 0);
                 try {
                     service.send(msg);
                 } catch (RemoteException e) {
@@ -128,15 +142,5 @@ public class MainActivity extends Activity implements OnClickListener {
             Log.v(TAG, "onServiceDisconnected");
         }
     };
-
-    private void playVoice(Voice v) {
-        AudioTrack audioTrack = null;
-        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, v.sampleRate,
-                AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, v.generatedVoice.length,
-                AudioTrack.MODE_STATIC);
-        audioTrack.write(v.generatedVoice, 0, v.generatedVoice.length);
-        audioTrack.play();
-    }
 
 }
