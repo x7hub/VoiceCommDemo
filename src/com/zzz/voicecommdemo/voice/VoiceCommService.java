@@ -22,21 +22,23 @@ import com.zzz.voicecommdemo.ui.MainActivity;
  * 
  * reference:
  * http://stackoverflow.com/questions/23154609/generate-chirp-signals-in-android
+ * https://github.com/Katee/quietnet
  * 
  * @author zzz
  *
  */
 public class VoiceCommService extends Service {
     public static final String TAG = "VoiceCommService";
-    private final String CODE_DEFAULT = "0";
+    private final String CODE_DEFAULT = "e";
 
     private boolean flagStop = false;
 
-    private Handler handler;
+    // private Handler handler;
 
     public static final int MSG_CONNECTED = 1;
     public static final int MSG_SEND = 2;
     public static final int MSG_RECV = 3;
+    public static final int MSG_STOP = 4;
     private Messenger client;
 
     private final Messenger messenger = new Messenger(new Handler(
@@ -51,20 +53,24 @@ public class VoiceCommService extends Service {
                         break;
                     case MSG_SEND:
                         final String data = (String) msg.obj;
-                        handler.post(new Runnable() {
+                        new Thread(new Runnable() {
                             @Override
                             public void run() {
                                 playVoice(data.isEmpty() ? CODE_DEFAULT : data);
                             }
-                        });
+                        }).start();
                         break;
                     case MSG_RECV:
-                        handler.post(new Runnable() {
+                        flagStop = false;
+                        new Thread(new Runnable() {
                             @Override
                             public void run() {
                                 readVoice();
                             }
-                        });
+                        }).start();
+                        break;
+                    case MSG_STOP:
+                        flagStop = true;
                         break;
                     default:
                         Log.w(TAG, "unknown msg");
@@ -76,9 +82,6 @@ public class VoiceCommService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        HandlerThread thread = new HandlerThread("ServiceStartArguments");
-        thread.start();
-        handler = new Handler(thread.getLooper());
     }
 
     @Override
@@ -89,32 +92,53 @@ public class VoiceCommService extends Service {
 
     // generate voice signal
     private void playVoice(String data) {
-        VoiceSignal v = VoiceSignal.createFrom(data);
+        Modulator mod = new Modulator(data);
+        mod.modulate();
         AudioTrack audioTrack = null;
-        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, v.sampleRate,
+        audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, Constants.RATE,
                 AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, v.generatedVoice.length,
+                AudioFormat.ENCODING_PCM_16BIT, mod.generatedVoice.length,
                 AudioTrack.MODE_STATIC);
-        audioTrack.write(v.generatedVoice, 0, v.generatedVoice.length);
+        audioTrack.write(mod.generatedVoice, 0, mod.generatedVoice.length);
         audioTrack.play();
     }
 
     // read voice from AudioRecord
-    private VoiceRecv readVoice() {
-        AudioRecord audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.MIC, Constants.DEFAULT_SAMPLE_RATE,
+    private void readVoice() {
+        int buffersize = AudioRecord.getMinBufferSize(Constants.RATE,
                 AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, Constants.DEFAULT_RECORD_BUFFER);
+                AudioFormat.ENCODING_PCM_16BIT);
+        AudioRecord audioRecord = new AudioRecord(
+                MediaRecorder.AudioSource.MIC, Constants.RATE,
+                AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, buffersize);
         audioRecord.startRecording();
 
-        VoiceRecv voice = new VoiceRecv();
+        Demodulator dem = new Demodulator(
+                new Demodulator.OnCharReceivedListener() {
+                    @Override
+                    public void onCharReceived(String data) {
+                        Message msg = Message.obtain(null,
+                                MainActivity.MSG_CHAR_RECEIVED, 0, 0);
+                        msg.obj = data;
+                        try {
+                            client.send(msg);
+                        } catch (RemoteException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+        dem.demodulate();
+        short[] frame = new short[Constants.CHUNK];
 
-        while (audioRecord.read(voice.bufferRead, 0,
-                Constants.DEFAULT_RECORD_POINT) > 0 && !flagStop) {
-            voice.decode();
+        while (audioRecord.read(frame, 0, Constants.CHUNK) > 0 && !flagStop) {
+            // Log.d(TAG, "audioRecord time " + System.currentTimeMillis());
+            dem.addFrame(frame);
         }
 
         audioRecord.stop();
-        return voice;
+        audioRecord.release();
+        dem.stop();
+        Log.d(TAG, "Record stopped");
     }
 }

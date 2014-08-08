@@ -22,7 +22,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.zzz.voicecommdemo.R;
-import com.zzz.voicecommdemo.voice.VoiceSignal;
+import com.zzz.voicecommdemo.voice.Modulator;
 import com.zzz.voicecommdemo.voice.VoiceCommService;
 
 /**
@@ -38,8 +38,11 @@ public class MainActivity extends Activity implements OnClickListener {
     private EditText edittextCode;
     private Button buttonPlay;
     private Button buttonRecord;
+    private Button buttonStop;
+    private TextView textviewReceived;
 
     public static final int MSG_STATE_GENERATEREADY = 1;
+    public static final int MSG_CHAR_RECEIVED = 2;
     private Messenger service;
 
     private final Messenger messenger = new Messenger(new Handler(
@@ -49,7 +52,8 @@ public class MainActivity extends Activity implements OnClickListener {
                 public boolean handleMessage(Message msg) {
                     Log.v(TAG, "IncomingHandler.handleMessage");
                     switch (msg.what) {
-                    case MSG_STATE_GENERATEREADY:
+                    case MSG_CHAR_RECEIVED:
+                        textviewReceived.append((String) msg.obj);
                         break;
                     }
                     return false;
@@ -67,8 +71,11 @@ public class MainActivity extends Activity implements OnClickListener {
         edittextCode = (EditText) findViewById(R.id.edittext_code);
         buttonPlay = (Button) findViewById(R.id.button_play);
         buttonRecord = (Button) findViewById(R.id.button_record);
+        buttonStop = (Button) findViewById(R.id.button_stop);
+        textviewReceived = (TextView) findViewById(R.id.textview_received);
         buttonPlay.setOnClickListener(this);
         buttonRecord.setOnClickListener(this);
+        buttonStop.setOnClickListener(this);
 
         Intent intent = new Intent(this.getApplicationContext(),
                 VoiceCommService.class);
@@ -105,6 +112,18 @@ public class MainActivity extends Activity implements OnClickListener {
             Log.v(TAG, "button_record clicked");
             if (bound) {
                 Message msg = Message.obtain(null, VoiceCommService.MSG_RECV,
+                        0, 0);
+                try {
+                    service.send(msg);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+            break;
+        case R.id.button_stop:
+            Log.v(TAG, "button_stop clicked");
+            if (bound) {
+                Message msg = Message.obtain(null, VoiceCommService.MSG_STOP,
                         0, 0);
                 try {
                     service.send(msg);
