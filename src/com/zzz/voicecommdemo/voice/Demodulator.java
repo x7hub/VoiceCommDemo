@@ -5,6 +5,11 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
 import android.util.Log;
 
 /**
@@ -18,11 +23,14 @@ public class Demodulator {
 
     private BlockingQueue<Frame> frameQueue;
     private Thread thread;
+    private FastFourierTransformer transformer;
+
     private OnCharReceivedListener listener;
 
     public Demodulator(OnCharReceivedListener listener) {
         frameQueue = new ArrayBlockingQueue<Frame>(Constants.IN_QUEUE_LENGTH);
         thread = new Thread(processFramesRunnable);
+        transformer = new FastFourierTransformer(DftNormalization.STANDARD);
         this.listener = listener;
     }
 
@@ -31,7 +39,7 @@ public class Demodulator {
     }
 
     public void addFrame(short[] data) {
-        Frame frame = new Frame(data);
+        Frame frame = new Frame(this, data);
         try {
             frameQueue.put(frame);
         } catch (InterruptedException e) {
@@ -119,65 +127,6 @@ public class Demodulator {
     }
 
     /**
-     * Complex
-     * 
-     * reference http://blog.csdn.net/ownwell/article/details/8179189
-     *
-     */
-    public static class Complex {
-        private final double re; // the real part
-        private final double im; // the imaginary part
-
-        public Complex(double real, double imag) {
-            re = real;
-            im = imag;
-        }
-
-        public String toString() {
-            if (im == 0)
-                return re + "";
-            if (re == 0)
-                return im + "i";
-            if (im < 0)
-                return re + " - " + (-im) + "i";
-            return re + " + " + im + "i";
-        }
-
-        public double abs() {
-            return Math.hypot(re, im);
-        }
-
-        public double phase() {
-            return Math.atan2(im, re);
-        }
-
-        public Complex plus(Complex b) {
-            Complex a = this;
-            double real = a.re + b.re;
-            double imag = a.im + b.im;
-            return new Complex(real, imag);
-        }
-
-        public Complex minus(Complex b) {
-            Complex a = this;
-            double real = a.re - b.re;
-            double imag = a.im - b.im;
-            return new Complex(real, imag);
-        }
-
-        public Complex times(Complex b) {
-            Complex a = this;
-            double real = a.re * b.re - a.im * b.im;
-            double imag = a.re * b.im + a.im * b.re;
-            return new Complex(real, imag);
-        }
-
-        public Complex times(double alpha) {
-            return new Complex(alpha * re, alpha * im);
-        }
-    }
-
-    /**
      * Frame
      * 
      * @author zzz
@@ -185,8 +134,10 @@ public class Demodulator {
      */
     private static class Frame {
         public short[] data;
+        private Demodulator demodulator;
 
-        public Frame(short[] data) {
+        public Frame(Demodulator demodulator, short[] data) {
+            this.demodulator = demodulator;
             this.data = data.clone();
 
         }
@@ -210,7 +161,8 @@ public class Demodulator {
                 dataComplex[i] = new Complex(input[i], 0);
             }
 
-            Complex[] fftResultComplex = fft(dataComplex);
+            Complex[] fftResultComplex = demodulator.transformer.transform(
+                    dataComplex, TransformType.FORWARD);
 
             for (int i = 0; i < fftResultComplex.length; i++) {
                 ret[i] = (int) Math.round(fftResultComplex[i].abs());
@@ -220,44 +172,6 @@ public class Demodulator {
             return ret;
         }
 
-        // reference:
-        // http://www.cnblogs.com/yangzhenyu/archive/2012/03/22/java.html
-        private Complex[] fft(Complex[] x) {
-            int N = x.length;
-
-            // base case
-            if (N == 1)
-                return new Complex[] { x[0] };
-
-            // radix 2 Cooley-Tukey FFT
-            if (N % 2 != 0) {
-                throw new RuntimeException("N is not a power of 2");
-            }
-
-            // fft of even terms
-            Complex[] even = new Complex[N / 2];
-            for (int k = 0; k < N / 2; k++) {
-                even[k] = x[2 * k];
-            }
-            Complex[] q = fft(even);
-
-            // fft of odd terms
-            Complex[] odd = even; // reuse the array
-            for (int k = 0; k < N / 2; k++) {
-                odd[k] = x[2 * k + 1];
-            }
-            Complex[] r = fft(odd);
-
-            // combine
-            Complex[] y = new Complex[N];
-            for (int k = 0; k < N / 2; k++) {
-                double kth = -2 * k * Math.PI / N;
-                Complex wk = new Complex(Math.cos(kth), Math.sin(kth));
-                y[k] = q[k].plus(wk.times(r[k]));
-                y[k + N / 2] = q[k].minus(wk.times(r[k]));
-            }
-            return y;
-        }
     }
 
     /**
