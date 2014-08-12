@@ -23,14 +23,12 @@ public class Demodulator {
 
     private BlockingQueue<Frame> frameQueue;
     private Thread thread;
-    private FastFourierTransformer transformer;
 
     private OnCharReceivedListener listener;
 
     public Demodulator(OnCharReceivedListener listener) {
         frameQueue = new ArrayBlockingQueue<Frame>(Constants.IN_QUEUE_LENGTH);
         thread = new Thread(processFramesRunnable);
-        transformer = new FastFourierTransformer(DftNormalization.STANDARD);
         this.listener = listener;
     }
 
@@ -39,7 +37,7 @@ public class Demodulator {
     }
 
     public void addFrame(short[] data) {
-        Frame frame = new Frame(this, data);
+        Frame frame = new Frame(data);
         try {
             frameQueue.put(frame);
         } catch (InterruptedException e) {
@@ -134,10 +132,13 @@ public class Demodulator {
      */
     private static class Frame {
         public short[] data;
-        private Demodulator demodulator;
+        private static FastFourierTransformer transformer;
 
-        public Frame(Demodulator demodulator, short[] data) {
-            this.demodulator = demodulator;
+        static {
+            transformer = new FastFourierTransformer(DftNormalization.STANDARD);
+        }
+
+        public Frame(short[] data) {
             this.data = data.clone();
 
         }
@@ -161,8 +162,8 @@ public class Demodulator {
                 dataComplex[i] = new Complex(input[i], 0);
             }
 
-            Complex[] fftResultComplex = demodulator.transformer.transform(
-                    dataComplex, TransformType.FORWARD);
+            Complex[] fftResultComplex = transformer.transform(dataComplex,
+                    TransformType.FORWARD);
 
             for (int i = 0; i < fftResultComplex.length; i++) {
                 ret[i] = (int) Math.round(fftResultComplex[i].abs());
