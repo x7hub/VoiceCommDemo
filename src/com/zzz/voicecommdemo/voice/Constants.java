@@ -17,6 +17,6 @@ public class Constants {
     public final static int DATASIZE = CHUNK * FRAME_LENGTH;
     public final static String SIGIL = "00";
     public final static int IN_QUEUE_LENGTH = 4000;
-    public final static int BUTTOM_THRESHOLD = 1000;
-    public final static String ERROR_CHAR = "";
+    public final static int BUTTOM_THRESHOLD = 500;
+    public final static String ERROR_CHAR = ".";
 }
