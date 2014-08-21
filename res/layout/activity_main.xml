@@ -21,7 +21,7 @@
         android:layout_below="@id/textview_hello"
         android:hint="@string/code_hint"
         android:inputType="text"
-        android:text="@string/hello_world" />
+        android:text="@string/default_code" />
 
     <Button
         android:id="@+id/button_play"

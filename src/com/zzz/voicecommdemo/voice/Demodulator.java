@@ -32,7 +32,7 @@ public class Demodulator {
         this.listener = listener;
     }
 
-    public void demodulate() {
+    public void perform() {
         thread.start();
     }
 

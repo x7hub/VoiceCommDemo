@@ -93,13 +93,19 @@ public class VoiceCommService extends Service {
     // generate voice signal
     private void playVoice(String data) {
         Modulator mod = new Modulator(data);
-        mod.modulate();
+        mod.perform();
+
+        Mixer mixer = new Mixer(this, mod);
+        mixer.perform();
+
+        byte[] buffer = mixer.mixedVoice;
+
         AudioTrack audioTrack = null;
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, Constants.RATE,
                 AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, mod.generatedVoice.length,
+                AudioFormat.ENCODING_PCM_16BIT, buffer.length,
                 AudioTrack.MODE_STATIC);
-        audioTrack.write(mod.generatedVoice, 0, mod.generatedVoice.length);
+        audioTrack.write(buffer, 0, buffer.length);
         audioTrack.play();
     }
 
@@ -128,7 +134,7 @@ public class VoiceCommService extends Service {
                         }
                     }
                 });
-        dem.demodulate();
+        dem.perform();
         short[] frame = new short[Constants.CHUNK];
 
         while (audioRecord.read(frame, 0, Constants.CHUNK) > 0 && !flagStop) {

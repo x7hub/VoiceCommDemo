@@ -19,7 +19,7 @@ public class Modulator {
     }
 
     // create voice from message
-    public byte[] modulate() {
+    public byte[] perform() {
         Log.v(TAG, "data - " + data);
         String pattern = Codec.encode(data);
         Log.v(TAG, "pattern - " + pattern);
