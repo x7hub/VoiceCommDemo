@@ -26,6 +26,8 @@ public class Mixer {
     public byte[] perform() {
         AssetManager assetManager = context.getAssets();
         InputStream stream = null;
+
+        // read into short array
         try {
             stream = assetManager.open("music.wav");
             stream.skip(wavHeader); // skip wav file header
@@ -34,19 +36,31 @@ public class Mixer {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        short[] backgroud = byteArray2ShortArray(mixedVoice);
+        short[] background = byteArray2ShortArray(mixedVoice);
         short[] data = byteArray2ShortArray(mod.generatedVoice);
 
+        // extend the array
+        short[] ori = background;
+        int times = data.length / background.length + 1;
+        if (times > 1) {
+            background = new short[ori.length * times];
+            for (int i = 0; i < background.length; i++) {
+                // copy to new extended array
+                // move the 0.2 weight here
+                background[i] = (short) (0.2 * ori[i % ori.length]);
+            }
+        }
+
+        // mix here
         try {
-            for (int i = 0; i < backgroud.length; i++) {
-                backgroud[i] = (short) (0.2 * backgroud[i] + 0.8 * data[i]);
+            for (int i = 0; i < background.length; i++) {
+                background[i] = (short) (background[i] + 0.8 * data[i]);
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             e.printStackTrace();
         }
 
-        mixedVoice = shortArray2ByteArray(backgroud);
+        mixedVoice = shortArray2ByteArray(background);
 
         return mixedVoice;
     }
