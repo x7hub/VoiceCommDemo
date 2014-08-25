@@ -7,6 +7,7 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -15,6 +16,7 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.zzz.voicecommdemo.R;
 import com.zzz.voicecommdemo.ui.MainActivity;
 
 /**
@@ -29,9 +31,10 @@ import com.zzz.voicecommdemo.ui.MainActivity;
  */
 public class VoiceCommService extends Service {
     public static final String TAG = "VoiceCommService";
-    private final String CODE_DEFAULT = "e";
+    private final String CODE_DEFAULT = ".";
 
     private boolean flagStop = false;
+    private StringBuilder receivedChars;
 
     // private Handler handler;
 
@@ -39,6 +42,8 @@ public class VoiceCommService extends Service {
     public static final int MSG_SEND = 2;
     public static final int MSG_RECV = 3;
     public static final int MSG_STOP = 4;
+    public static final int MSG_CLEAR = 5;
+    public static final int MSG_JUMP = 6;
     private Messenger client;
 
     private final Messenger messenger = new Messenger(new Handler(
@@ -47,10 +52,13 @@ public class VoiceCommService extends Service {
                 @Override
                 public boolean handleMessage(Message msg) {
                     Log.v(TAG, "IncomingHandler.handleMessage");
+
                     switch (msg.what) {
+
                     case MSG_CONNECTED:
                         client = msg.replyTo;
                         break;
+
                     case MSG_SEND:
                         final String data = (String) msg.obj;
                         new Thread(new Runnable() {
@@ -60,6 +68,7 @@ public class VoiceCommService extends Service {
                             }
                         }).start();
                         break;
+
                     case MSG_RECV:
                         flagStop = false;
                         new Thread(new Runnable() {
@@ -69,9 +78,37 @@ public class VoiceCommService extends Service {
                             }
                         }).start();
                         break;
+
                     case MSG_STOP:
                         flagStop = true;
                         break;
+
+                    case MSG_CLEAR:
+                        clearRecerivedChars();
+                        break;
+
+                    case MSG_JUMP:
+                        // stop recoding
+                        flagStop = true;
+
+                        // get uid
+                        Log.v(TAG,
+                                "receivedChars - " + receivedChars.toString());
+                        String uid = receivedChars.toString();
+
+                        // build uri
+                        StringBuilder stringUserInfo = new StringBuilder(
+                                getString(R.string.userinfo_scheme_prefix));
+                        Uri uriUserinfo = Uri.parse(stringUserInfo.append(uid)
+                                .toString());
+
+                        // jump
+                        Intent intentShowUser = new Intent();
+                        intentShowUser.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intentShowUser.setData(uriUserinfo);
+                        startActivity(intentShowUser);
+                        break;
+
                     default:
                         Log.w(TAG, "unknown msg");
                     }
@@ -87,6 +124,7 @@ public class VoiceCommService extends Service {
     @Override
     public IBinder onBind(Intent arg0) {
         Log.v(TAG, "onBind");
+        receivedChars = new StringBuilder();
         return messenger.getBinder();
     }
 
@@ -99,6 +137,7 @@ public class VoiceCommService extends Service {
         mixer.perform();
 
         byte[] buffer = mixer.mixedVoice;
+        // byte[] buffer = mod.generatedVoice;
 
         AudioTrack audioTrack = null;
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, Constants.RATE,
@@ -124,6 +163,9 @@ public class VoiceCommService extends Service {
                 new Demodulator.OnCharReceivedListener() {
                     @Override
                     public void onCharReceived(String data) {
+                        // add to StringBuilder
+                        receivedChars.append(data);
+                        // send to activity
                         Message msg = Message.obtain(null,
                                 MainActivity.MSG_CHAR_RECEIVED, 0, 0);
                         msg.obj = data;
@@ -146,5 +188,9 @@ public class VoiceCommService extends Service {
         audioRecord.release();
         dem.stop();
         Log.d(TAG, "Record stopped");
+    }
+
+    private void clearRecerivedChars() {
+        receivedChars.delete(0, receivedChars.length());
     }
 }

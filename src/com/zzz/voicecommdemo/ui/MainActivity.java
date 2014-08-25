@@ -8,6 +8,7 @@ import android.content.ServiceConnection;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -39,6 +40,8 @@ public class MainActivity extends Activity implements OnClickListener {
     private Button buttonPlay;
     private Button buttonRecord;
     private Button buttonStop;
+    private Button buttonClear;
+    private Button buttonJump;
     private TextView textviewReceived;
 
     public static final int MSG_STATE_GENERATEREADY = 1;
@@ -73,9 +76,13 @@ public class MainActivity extends Activity implements OnClickListener {
         buttonRecord = (Button) findViewById(R.id.button_record);
         buttonStop = (Button) findViewById(R.id.button_stop);
         textviewReceived = (TextView) findViewById(R.id.textview_received);
+        buttonClear = (Button) findViewById(R.id.button_clear);
+        buttonJump = (Button) findViewById(R.id.button_jump);
         buttonPlay.setOnClickListener(this);
         buttonRecord.setOnClickListener(this);
         buttonStop.setOnClickListener(this);
+        buttonClear.setOnClickListener(this);
+        buttonJump.setOnClickListener(this);
 
         Intent intent = new Intent(this.getApplicationContext(),
                 VoiceCommService.class);
@@ -94,46 +101,41 @@ public class MainActivity extends Activity implements OnClickListener {
 
     @Override
     public void onClick(View v) {
+        int messageWhat = -1;
         switch (v.getId()) {
         case R.id.button_play:
             Log.v(TAG, "button_play clicked");
-            if (bound) {
-                Message msg = Message.obtain(null, VoiceCommService.MSG_SEND,
-                        0, 0);
-                msg.obj = edittextCode.getText().toString();
-                try {
-                    service.send(msg);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
-            }
+            messageWhat = VoiceCommService.MSG_SEND;
             break;
         case R.id.button_record:
             Log.v(TAG, "button_record clicked");
-            if (bound) {
-                Message msg = Message.obtain(null, VoiceCommService.MSG_RECV,
-                        0, 0);
-                try {
-                    service.send(msg);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
-            }
+            messageWhat = VoiceCommService.MSG_RECV;
             break;
         case R.id.button_stop:
             Log.v(TAG, "button_stop clicked");
-            if (bound) {
-                Message msg = Message.obtain(null, VoiceCommService.MSG_STOP,
-                        0, 0);
-                try {
-                    service.send(msg);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
-            }
+            messageWhat = VoiceCommService.MSG_STOP;
+            break;
+        case R.id.button_clear:
+            Log.v(TAG, "button_clear clicked");
+            textviewReceived.setText("");
+            messageWhat = VoiceCommService.MSG_CLEAR;
+            break;
+        case R.id.button_jump:
+            Log.v(TAG, "button_jump clicked");
+            messageWhat = VoiceCommService.MSG_JUMP;
             break;
         default:
             Log.v(TAG, "unknown clicked");
+        }
+
+        if (bound && messageWhat > 0) {
+            Message msg = Message.obtain(null, messageWhat, 0, 0);
+            msg.obj = edittextCode.getText().toString();
+            try {
+                service.send(msg);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         }
     }
 

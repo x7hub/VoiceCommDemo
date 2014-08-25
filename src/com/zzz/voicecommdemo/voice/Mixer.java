@@ -11,7 +11,7 @@ import android.util.Log;
 
 public class Mixer {
     public static final String TAG = "Mixer";
-    private final int wavHeader = 44;
+    private final int wavHeaderLength = 44;
     private final int bufferSize = 4096;
 
     private Context context;
@@ -30,31 +30,32 @@ public class Mixer {
         // read into short array
         try {
             stream = assetManager.open("music.wav");
-            stream.skip(wavHeader); // skip wav file header
+            stream.skip(wavHeaderLength); // skip wav file header
             mixedVoice = readToByteArray(stream);
             stream.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        short[] background = byteArray2ShortArray(mixedVoice);
+        short[] oriMusic = byteArray2ShortArray(mixedVoice);
         short[] data = byteArray2ShortArray(mod.generatedVoice);
 
         // extend the array
-        short[] ori = background;
-        int times = data.length / background.length + 1;
-        if (times > 1) {
-            background = new short[ori.length * times];
-            for (int i = 0; i < background.length; i++) {
-                // copy to new extended array
-                // move the 0.2 weight here
-                background[i] = (short) (0.2 * ori[i % ori.length]);
-            }
+        int times = data.length / oriMusic.length + 1;
+        short[] background = new short[oriMusic.length * times];
+        for (int i = 0; i < background.length; i++) {
+            // copy to new extended array
+            // move the 0.2 weight here
+            background[i] = (short) (0.2 * oriMusic[i % oriMusic.length]);
+            // Log.i(TAG, "ori - " + ori[i]);
         }
 
         // mix here
         try {
             for (int i = 0; i < background.length; i++) {
+                // Log.i(TAG, "ori - " + background[i]);
                 background[i] = (short) (background[i] + 0.8 * data[i]);
+                // Log.i(TAG, "data - " + data[i]);
+                // Log.i(TAG, "mixed - " + background[i]);
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             e.printStackTrace();

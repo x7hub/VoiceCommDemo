@@ -35,6 +35,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/button_play"
+        android:layout_marginTop="@dimen/xlarge"
         android:text="@string/record" />
 
     <Button
@@ -48,6 +49,21 @@
         android:id="@+id/textview_received"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/button_stop" />
+        android:layout_below="@id/button_stop"
+        android:layout_marginTop="@dimen/xlarge" />
+
+    <Button
+        android:id="@+id/button_clear"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/textview_received"
+        android:text="@string/clear" />
+
+    <Button
+        android:id="@+id/button_jump"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/button_clear"
+        android:text="@string/jump" />
 
 </RelativeLayout>
