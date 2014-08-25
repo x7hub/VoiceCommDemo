@@ -52,18 +52,21 @@
         android:layout_below="@id/button_stop"
         android:layout_marginTop="@dimen/xlarge" />
 
-    <Button
-        android:id="@+id/button_clear"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/textview_received"
-        android:text="@string/clear" />
+    <!-- <Button -->
+    <!-- android:id="@+id/button_clear" -->
+    <!-- android:layout_width="match_parent" -->
+    <!-- android:layout_height="wrap_content" -->
+    <!-- android:layout_below="@id/textview_received" -->
+    <!-- android:text="@string/clear" -->
+    <!-- android:visibility="gone" /> -->
 
-    <Button
-        android:id="@+id/button_jump"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/button_clear"
-        android:text="@string/jump" />
+
+    <!-- <Button -->
+    <!-- android:id="@+id/button_jump" -->
+    <!-- android:layout_width="match_parent" -->
+    <!-- android:layout_height="wrap_content" -->
+    <!-- android:layout_below="@id/button_clear" -->
+    <!-- android:text="@string/jump" -->
+    <!-- android:visibility="gone" /> -->
 
 </RelativeLayout>

@@ -10,7 +10,7 @@ import java.util.Map.Entry;
  *
  */
 public class Codec {
-    private static final String TAG = "Codec";
+    // private static final String TAG = "Codec";
 
     private static final HashMap<String, String> codeMap = new HashMap<String, String>();
     static {

@@ -9,7 +9,6 @@ import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
@@ -18,6 +17,7 @@ import android.util.Log;
 
 import com.zzz.voicecommdemo.R;
 import com.zzz.voicecommdemo.ui.MainActivity;
+import com.zzz.voicecommdemo.voice.Recognizer.OnEndingReceivedListener;
 
 /**
  * VoiceCommService
@@ -34,16 +34,13 @@ public class VoiceCommService extends Service {
     private final String CODE_DEFAULT = ".";
 
     private boolean flagStop = false;
-    private StringBuilder receivedChars;
 
-    // private Handler handler;
+    private Recognizer recognizer; // parse received chars
 
     public static final int MSG_CONNECTED = 1;
     public static final int MSG_SEND = 2;
     public static final int MSG_RECV = 3;
     public static final int MSG_STOP = 4;
-    public static final int MSG_CLEAR = 5;
-    public static final int MSG_JUMP = 6;
     private Messenger client;
 
     private final Messenger messenger = new Messenger(new Handler(
@@ -60,6 +57,7 @@ public class VoiceCommService extends Service {
                         break;
 
                     case MSG_SEND:
+                        flagStop = true;
                         final String data = (String) msg.obj;
                         new Thread(new Runnable() {
                             @Override
@@ -83,48 +81,36 @@ public class VoiceCommService extends Service {
                         flagStop = true;
                         break;
 
-                    case MSG_CLEAR:
-                        clearRecerivedChars();
-                        break;
+                    // case MSG_CLEAR:
+                    // clearRecerivedChars();
+                    // break;
 
-                    case MSG_JUMP:
-                        // stop recoding
-                        flagStop = true;
-
-                        // get uid
-                        Log.v(TAG,
-                                "receivedChars - " + receivedChars.toString());
-                        String uid = receivedChars.toString();
-
-                        // build uri
-                        StringBuilder stringUserInfo = new StringBuilder(
-                                getString(R.string.userinfo_scheme_prefix));
-                        Uri uriUserinfo = Uri.parse(stringUserInfo.append(uid)
-                                .toString());
-
-                        // jump
-                        Intent intentShowUser = new Intent();
-                        intentShowUser.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        intentShowUser.setData(uriUserinfo);
-                        startActivity(intentShowUser);
-                        break;
+                    // case MSG_JUMP:
+                    // jumpToWeiboProfile();
+                    // break;
 
                     default:
                         Log.w(TAG, "unknown msg");
                     }
                     return false;
                 }
+
             }));
 
     @Override
     public void onCreate() {
         super.onCreate();
+        recognizer = new Recognizer(new OnEndingReceivedListener() {
+            @Override
+            public void onEndingReceived(String s) {
+                jumpToWeiboProfile(s);
+            }
+        });
     }
 
     @Override
     public IBinder onBind(Intent arg0) {
         Log.v(TAG, "onBind");
-        receivedChars = new StringBuilder();
         return messenger.getBinder();
     }
 
@@ -150,6 +136,8 @@ public class VoiceCommService extends Service {
 
     // read voice from AudioRecord
     private void readVoice() {
+        recognizer.clear();
+
         int buffersize = AudioRecord.getMinBufferSize(Constants.RATE,
                 AudioFormat.CHANNEL_CONFIGURATION_MONO,
                 AudioFormat.ENCODING_PCM_16BIT);
@@ -163,8 +151,6 @@ public class VoiceCommService extends Service {
                 new Demodulator.OnCharReceivedListener() {
                     @Override
                     public void onCharReceived(String data) {
-                        // add to StringBuilder
-                        receivedChars.append(data);
                         // send to activity
                         Message msg = Message.obtain(null,
                                 MainActivity.MSG_CHAR_RECEIVED, 0, 0);
@@ -174,6 +160,9 @@ public class VoiceCommService extends Service {
                         } catch (RemoteException e) {
                             e.printStackTrace();
                         }
+
+                        // add to recognizer
+                        recognizer.add(data);
                     }
                 });
         dem.perform();
@@ -190,7 +179,20 @@ public class VoiceCommService extends Service {
         Log.d(TAG, "Record stopped");
     }
 
-    private void clearRecerivedChars() {
-        receivedChars.delete(0, receivedChars.length());
+    private void jumpToWeiboProfile(String uid) {
+        // stop recording
+        flagStop = true;
+
+        // build uri
+        StringBuilder stringUserInfo = new StringBuilder(
+                getString(R.string.userinfo_scheme_prefix));
+        Uri uriUserinfo = Uri.parse(stringUserInfo.append(uid).toString());
+
+        // jump
+        Intent intentShowUser = new Intent();
+        intentShowUser.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intentShowUser.setData(uriUserinfo);
+        startActivity(intentShowUser);
+
     }
 }

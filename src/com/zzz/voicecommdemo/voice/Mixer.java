@@ -7,7 +7,6 @@ import java.io.InputStream;
 
 import android.content.Context;
 import android.content.res.AssetManager;
-import android.util.Log;
 
 public class Mixer {
     public static final String TAG = "Mixer";
