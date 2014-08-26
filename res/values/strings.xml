@@ -6,7 +6,7 @@
     <string name="action_settings">Settings</string>
     <string name="code_hint">code</string>
     <!-- <string name="default_code">The L Developer Preview gives you an advance look at the upcoming release for the Android platform, which offers new features for users and app developers. This document provides an introduction to the most notable APIs.</string> -->
-    <string name="default_code">B3557176895EB3557176895EB3557176895E</string>
+    <string name="default_code">B3557176895E</string>
     <string name="play">Play</string>
     <string name="record">Record</string>
     <string name="stop">Stop</string>

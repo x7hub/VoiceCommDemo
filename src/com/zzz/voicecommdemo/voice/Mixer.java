@@ -37,27 +37,32 @@ public class Mixer {
         }
         short[] oriMusic = byteArray2ShortArray(mixedVoice);
         short[] data = byteArray2ShortArray(mod.generatedVoice);
+        short[] background = null;
 
         // extend the array
-        int times = data.length / oriMusic.length + 1;
-        short[] background = new short[oriMusic.length * times];
-        for (int i = 0; i < background.length; i++) {
-            // copy to new extended array
-            // move the 0.2 weight here
-            background[i] = (short) (0.2 * oriMusic[i % oriMusic.length]);
-            // Log.i(TAG, "ori - " + ori[i]);
+        if (data.length > oriMusic.length) {
+            int times = data.length / oriMusic.length + 1;
+            background = new short[oriMusic.length * times];
+            for (int i = 0; i < background.length; i++) {
+                // copy to new extended array
+                // move the 0.2 weight here
+                background[i] = (short) (0.2 * oriMusic[i % oriMusic.length]);
+                // Log.i(TAG, "ori - " + ori[i]);
+            }
+        } else {
+            background = oriMusic.clone();
+            for (int i = 0; i < background.length; i++) {
+                // move the 0.2 weight here
+                background[i] *= 0.2;
+            }
         }
 
         // mix here
-        try {
-            for (int i = 0; i < background.length; i++) {
-                // Log.i(TAG, "ori - " + background[i]);
-                background[i] = (short) (background[i] + 0.8 * data[i]);
-                // Log.i(TAG, "data - " + data[i]);
-                // Log.i(TAG, "mixed - " + background[i]);
-            }
-        } catch (ArrayIndexOutOfBoundsException e) {
-            e.printStackTrace();
+        for (int i = 0; i < background.length; i++) {
+            // Log.i(TAG, "ori - " + background[i]);
+            background[i] = (short) (background[i] + 0.8 * data[i % data.length]);
+            // Log.i(TAG, "data - " + data[i]);
+            // Log.i(TAG, "mixed - " + background[i]);
         }
 
         mixedVoice = shortArray2ByteArray(background);

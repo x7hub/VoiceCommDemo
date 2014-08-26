@@ -35,9 +35,11 @@ public class Recognizer {
         // judge ending E
         if (data.equals("E")) {
             Log.v(TAG, "receivedChars - " + receivedChars.toString());
-            if (receivedChars.length() > 0 && receivedChars.charAt(0) == 'B'
-                    && receivedChars.charAt(receivedChars.length() - 1) == 'E') {
+            // check
+            if (receivedChars.length() > 0
+                    && receivedChars.toString().matches("B[0-9]+E")) {
                 // get !
+                Log.d(TAG, "matched");
                 String uid = receivedChars.substring(1,
                         receivedChars.length() - 1).toString();
                 listener.onEndingReceived(uid);

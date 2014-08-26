@@ -17,7 +17,6 @@ import android.util.Log;
 
 import com.zzz.voicecommdemo.R;
 import com.zzz.voicecommdemo.ui.MainActivity;
-import com.zzz.voicecommdemo.voice.Recognizer.OnEndingReceivedListener;
 
 /**
  * VoiceCommService
@@ -33,8 +32,10 @@ public class VoiceCommService extends Service {
     public static final String TAG = "VoiceCommService";
     private final String CODE_DEFAULT = ".";
 
-    private boolean flagStop = false;
+    private boolean interruptRecording = false;
 
+    private AudioTrack audioTrack;
+    private AudioRecord audioRecord;
     private Recognizer recognizer; // parse received chars
 
     public static final int MSG_CONNECTED = 1;
@@ -57,7 +58,7 @@ public class VoiceCommService extends Service {
                         break;
 
                     case MSG_SEND:
-                        flagStop = true;
+                        stopAll();
                         final String data = (String) msg.obj;
                         new Thread(new Runnable() {
                             @Override
@@ -68,7 +69,7 @@ public class VoiceCommService extends Service {
                         break;
 
                     case MSG_RECV:
-                        flagStop = false;
+                        stopAll();
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
@@ -78,7 +79,7 @@ public class VoiceCommService extends Service {
                         break;
 
                     case MSG_STOP:
-                        flagStop = true;
+                        stopAll();
                         break;
 
                     // case MSG_CLEAR:
@@ -100,12 +101,7 @@ public class VoiceCommService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        recognizer = new Recognizer(new OnEndingReceivedListener() {
-            @Override
-            public void onEndingReceived(String s) {
-                jumpToWeiboProfile(s);
-            }
-        });
+
     }
 
     @Override
@@ -115,7 +111,7 @@ public class VoiceCommService extends Service {
     }
 
     // generate voice signal
-    private void playVoice(String data) {
+    private synchronized void playVoice(String data) {
         Modulator mod = new Modulator(data);
         mod.perform();
 
@@ -125,28 +121,34 @@ public class VoiceCommService extends Service {
         byte[] buffer = mixer.mixedVoice;
         // byte[] buffer = mod.generatedVoice;
 
-        AudioTrack audioTrack = null;
         audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, Constants.RATE,
                 AudioFormat.CHANNEL_CONFIGURATION_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, buffer.length,
                 AudioTrack.MODE_STATIC);
         audioTrack.write(buffer, 0, buffer.length);
+        audioTrack.setLoopPoints(0, buffer.length / 2, -1);
         audioTrack.play();
     }
 
     // read voice from AudioRecord
-    private void readVoice() {
-        recognizer.clear();
+    private synchronized void readVoice() {
+        interruptRecording = false;
 
-        int buffersize = AudioRecord.getMinBufferSize(Constants.RATE,
-                AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT);
-        AudioRecord audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.MIC, Constants.RATE,
-                AudioFormat.CHANNEL_CONFIGURATION_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, buffersize);
-        audioRecord.startRecording();
+        // prepare recognizer
+        if (recognizer == null) {
+            recognizer = new Recognizer(
+                    new Recognizer.OnEndingReceivedListener() {
+                        @Override
+                        public void onEndingReceived(String s) {
+                            Log.d(TAG, "onEndingReceived");
+                            jumpToWeiboProfile(s);
+                        }
+                    });
+        } else {
+            recognizer.clear();
+        }
 
+        // prepare demodulator
         Demodulator dem = new Demodulator(
                 new Demodulator.OnCharReceivedListener() {
                     @Override
@@ -168,7 +170,19 @@ public class VoiceCommService extends Service {
         dem.perform();
         short[] frame = new short[Constants.CHUNK];
 
-        while (audioRecord.read(frame, 0, Constants.CHUNK) > 0 && !flagStop) {
+        // prepare audio record
+        int buffersize = AudioRecord.getMinBufferSize(Constants.RATE,
+                AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.ENCODING_PCM_16BIT);
+        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                Constants.RATE, AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, buffersize);
+
+        // start
+        audioRecord.startRecording();
+
+        while (audioRecord.read(frame, 0, Constants.CHUNK) > 0
+                && !interruptRecording) {
             // Log.d(TAG, "audioRecord time " + System.currentTimeMillis());
             dem.addFrame(frame);
         }
@@ -179,9 +193,25 @@ public class VoiceCommService extends Service {
         Log.d(TAG, "Record stopped");
     }
 
+    private void stopAll() {
+        // stop AudioRecord
+        interruptRecording = true;
+        // stop AudioTrack
+        if (audioTrack != null)
+            Log.d(TAG,
+                    "audioTrack.getPlayState() - " + audioTrack.getPlayState());
+        if (audioTrack != null
+                && audioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING) {
+            audioTrack.stop();
+            audioTrack.release();
+        }
+    }
+
     private void jumpToWeiboProfile(String uid) {
-        // stop recording
-        flagStop = true;
+        // stop recording and playing
+        stopAll();
+        
+        Log.i(TAG, "uid - " + uid);
 
         // build uri
         StringBuilder stringUserInfo = new StringBuilder(
